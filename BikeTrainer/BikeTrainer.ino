@@ -4,14 +4,14 @@
  * Reads and analyzes data from bike sensors.
  * Monitors wheel & cadence sensor and counts revolutions. 
  * Calculates total time and total distace.
- * Calculates instant velocity and instant cadence rpm 
- * Calculates average velocity and average cadence rpm
+ * Calculates instant velocity and instant cadence rpm. 
+ * Calculates average velocity and average cadence rpm.
  * 
  * Sends wheel & cadence counter values on serial port.
  * 
  * >>> THIS IS A TEST PROTOTYPE <<<
  * 
- * version  0.0.2. 
+ * version  0.0.3. 
  * created  12 feb 2018
  * modified 15 feb 2018
  * by michele bonacina
@@ -33,6 +33,11 @@
  * limitations under the License.
  * 
  */
+// include the library code:
+#include <LiquidCrystal.h>  // LCD library
+
+// initialize the library with the interface pins
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2); 
 
 // ports definition
 const int wheelSensorPort   = A0; // wheel sensor conneted on analog port 0
@@ -68,6 +73,14 @@ void setup() {
   Serial.begin(9600);
   // initialice computation variables
   startTime = millis();
+  // set up the LCD's number of columns and rows
+  lcd.begin(16, 2);
+  // Print a message to the LCD
+  lcd.setCursor(0, 0);
+  lcd.print("aBikeTrainer");  
+  lcd.setCursor(0, 1);
+  lcd.print("ver. 0.0.2.");  
+  delay(2000);
 }
 
 /*
@@ -138,6 +151,30 @@ void loop() {
 
   // send sensor state
   if (millis() - printTime > printLatency) {
+    printTime = millis();
+    lcd.setCursor(0, 0);
+    lcd.print("Time            ");  
+    lcd.setCursor(0, 1);
+    String totalTime = "";
+    for (int i = 0; i < 10 - String(totalTimeHour).length(); i++) {
+      totalTime += " ";
+    }
+    totalTime += totalTimeHour;
+    totalTime += ":";
+    if (totalTimeMinute <= 9) {
+      totalTime += "0";
+    }
+    totalTime += totalTimeMinute;
+    totalTime += ":";
+    if (totalTimeSecond <= 9) {
+      totalTime += "0";
+    }
+    totalTime += totalTimeSecond;
+    lcd.print(totalTime);  
+    
+   
+
+    
     Serial.print(wheelCounter);
     Serial.print("  ");
     Serial.print(cadenceCounter);
@@ -165,3 +202,5 @@ void loop() {
   delay(latency);
 
 }
+
+
