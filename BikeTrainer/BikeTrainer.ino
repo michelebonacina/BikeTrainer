@@ -6,15 +6,13 @@
  * Calculates total time and total distace.
  * Calculates instant velocity and instant cadence rpm. 
  * Calculates average velocity and average cadence rpm.
- * Shows session time on LDC display
- * 
- * Sends wheel & cadence counter values on serial port.
+ * Shows data on LCD, changing shown values every 5 seconds
  * 
  * >>> THIS IS A TEST PROTOTYPE <<<
  * 
- * version  0.0.3. 
+ * version  0.1.0. 
  * created  12 feb 2018
- * modified 15 feb 2018
+ * modified 17 feb 2018
  * by michele bonacina
  * 
  * 
@@ -56,6 +54,8 @@ long wheelRevolutionDuration    = 0;      // time in millis for a wheel revoluti
 long wheelRevolutionLastTime    = 0;      // last time the wheel sensor was closed
 long cadenceRevolutionDuration  = 0;      // time in millis for a cadence revolution
 long cadenceRevolutionLastTime  = 0;      // last time the cadence sensor was closed
+int currentLcdData              = 0;      // the index of the current data to be printed on LCD display
+int showDataCounter             = 0;      // number of LCD printing cycle the data is shown
 
 // data computing
 long startTime            = 0;     // trainig starting time
@@ -73,20 +73,20 @@ const int right   = 3;  // text lcd right alignment
  * Main settings.
  */
 void setup() {
-  // initializes serial communication  
-  Serial.begin(9600);
   // initializes computation variables
   startTime = millis();
   // set up LCD's number of columns and rows
   lcd.begin(16, 2);
   // prints a message on the LCD
-  lcdPrint("aBikeTrainer", left, "ver. 0.0.2.", left);  
   delay(2000);
 }
+
 
 /*
  * Main loop.
  * Read wheel and cadence sensor state and count revolutions.
+ * Computes sessione data.
+ * Prints session data on LCD changing every 5 seconds.
  */
 void loop() {
   // reads sensors value
@@ -135,71 +135,73 @@ void loop() {
   }
   
   // computes session data
+  // total wheel and cadence revolutions
+  String sessionData[8][2];
+  sessionData[0][0] = "Wheel #";
+  sessionData[0][1] = String(wheelCounter);
+  sessionData[1][0] = "Cadence #";
+  sessionData[1][1] = String(cadenceCounter);
   // total time in this session in hour, minute, seconds
   int totalTimeHour = (millis() - startTime) / 3600000;
   int totalTimeMinute = ((millis() - startTime) % 3600000) / 60000;
   int totalTimeSecond = ((millis() - startTime) % 60000) / 1000;
+  String totalTime = "";
+  for (int i = 0; i < 10 - String(totalTimeHour).length(); i++) {
+    totalTime += " ";
+  }
+  totalTime += totalTimeHour;
+  totalTime += ":";
+  if (totalTimeMinute <= 9) {
+    totalTime += "0";
+  }
+  totalTime += totalTimeMinute;
+  totalTime += ":";
+  if (totalTimeSecond <= 9) {
+    totalTime += "0";
+  }
+  totalTime += totalTimeSecond;
+  sessionData[2][0] = "Time";
+  sessionData[2][1] = String(totalTime);
   // total distance amount in this session in km
   float totalDistance = wheelCircumference * wheelCounter / 100000.0;
+  sessionData[3][0] = "Distance";
+  sessionData[3][1] = String(totalDistance);
   // average velocity in km/h, based on distance and total session time
   float averageVelocity = totalDistance / ((millis() - startTime) / 3600000.0);
+  sessionData[4][0] = "Avg Velocity";
+  sessionData[4][1] = String(averageVelocity);
   // avrage cadence rpm, based on cadence and total session time
   int averageCadenceRpm = (int) (cadenceCounter / ((millis() - startTime) / 60000.0));
+  sessionData[5][0] = "Avg Cadence RPM";
+  sessionData[5][1] = String(averageCadenceRpm);
   // instant velocity, based on one wheel revolution
   float instantVelocity = (wheelCircumference / 100000.0) / (wheelRevolutionDuration / 3600000.0);
+  sessionData[6][0] = "Velocity";
+  sessionData[6][1] = String(instantVelocity);
   // instant cadence rpm, based on one pedal revolution
   int instantCadenceRpm = (int) (1.0 / (cadenceRevolutionDuration / 60000.0));
+  sessionData[7][0] = "Cadence RPM";
+  sessionData[7][1] = String(instantCadenceRpm);
 
   // prints sensor state
   if (millis() - printTime > printLatency) {
+    // resets print timestamp
     printTime = millis();
-    String totalTime = "";
-    for (int i = 0; i < 10 - String(totalTimeHour).length(); i++) {
-      totalTime += " ";
+    // checks data to show
+    if (showDataCounter >= 20) {
+      // it's time to change data shown
+      currentLcdData = (currentLcdData + 1) % 8;
+      showDataCounter = 0;
     }
-    totalTime += totalTimeHour;
-    totalTime += ":";
-    if (totalTimeMinute <= 9) {
-      totalTime += "0";
-    }
-    totalTime += totalTimeMinute;
-    totalTime += ":";
-    if (totalTimeSecond <= 9) {
-      totalTime += "0";
-    }
-    totalTime += totalTimeSecond;
-    lcdPrint("Time", left, totalTime, right);  
-    
-   
-
-    // sends data on serial port    
-    Serial.print(wheelCounter);
-    Serial.print("  ");
-    Serial.print(cadenceCounter);
-    Serial.print("  ");
-    Serial.print(totalTimeHour);
-    Serial.print(":");
-    Serial.print(totalTimeMinute);
-    Serial.print(":");
-    Serial.print(totalTimeSecond);
-    Serial.print("  ");
-    Serial.print(totalDistance);
-    Serial.print("  ");
-    Serial.print(instantVelocity);
-    Serial.print("  ");
-    Serial.print(instantCadenceRpm);
-    Serial.print("  ");
-    Serial.print("  ");
-    Serial.print(averageVelocity);
-    Serial.print("  ");
-    Serial.print(averageCadenceRpm);
-    Serial.println("  ");
+    showDataCounter++;
+    // prints data on LCD
+    lcdPrint(sessionData[currentLcdData][0], left, sessionData[currentLcdData][1], right);  
   }
   
   // wait before next read
   delay(latency);
-
 }
+
 
 /**
  * Print data on a 16x2 LCD.
