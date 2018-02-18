@@ -78,6 +78,7 @@ void setup() {
   // set up LCD's number of columns and rows
   lcd.begin(16, 2);
   // prints a message on the LCD
+  lcdPrint("aBikeTrainer", left, "ver. 0.1.0.", left);  
   delay(2000);
 }
 
