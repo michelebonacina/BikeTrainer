@@ -60,7 +60,7 @@ int showDataCounter             = 0;      // number of LCD printing cycle the da
 // data computing
 long startTime            = 0;     // trainig starting time
 long printTime            = 0;     // last data printing time
-float wheelCircumference  = 2096;  // wheel circumference in centimeters
+float wheelCircumference  = 2089;  // wheel circumference in millimeters
 
 // lcd configuration
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);  // initialize the library with the interface pins
@@ -164,7 +164,7 @@ void loop() {
   sessionData[2][0] = "Time";
   sessionData[2][1] = String(totalTime);
   // total distance amount in this session in km
-  float totalDistance = wheelCircumference * wheelCounter / 100000.0;
+  float totalDistance = wheelCircumference * wheelCounter / 1000000.0;
   sessionData[3][0] = "Distance";
   sessionData[3][1] = String(totalDistance);
   // average velocity in km/h, based on distance and total session time
@@ -176,7 +176,7 @@ void loop() {
   sessionData[5][0] = "Avg Cadence RPM";
   sessionData[5][1] = String(averageCadenceRpm);
   // instant velocity, based on one wheel revolution
-  float instantVelocity = (wheelCircumference / 100000.0) / (wheelRevolutionDuration / 3600000.0);
+  float instantVelocity = (wheelCircumference / 1000000.0) / (wheelRevolutionDuration / 3600000.0);
   sessionData[6][0] = "Velocity";
   sessionData[6][1] = String(instantVelocity);
   // instant cadence rpm, based on one pedal revolution
