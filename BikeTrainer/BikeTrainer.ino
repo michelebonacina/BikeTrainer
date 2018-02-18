@@ -10,7 +10,7 @@
  * 
  * >>> THIS IS A TEST PROTOTYPE <<<
  * 
- * version  0.1.0. 
+ * version  0.0.3. 
  * created  12 feb 2018
  * modified 17 feb 2018
  * by michele bonacina
@@ -78,7 +78,7 @@ void setup() {
   // set up LCD's number of columns and rows
   lcd.begin(16, 2);
   // prints a message on the LCD
-  lcdPrint("aBikeTrainer", left, "ver. 0.1.0.", left);  
+  lcdPrint("aBikeTrainer", left, "ver. 0.0.3.", left);  
   delay(2000);
 }
 
