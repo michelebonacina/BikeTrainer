@@ -10,9 +10,9 @@
  * 
  * >>> THIS IS A TEST PROTOTYPE <<<
  * 
- * version  0.0.3. 
+ * version  0.0.4. 
  * created  12 feb 2018
- * modified 17 feb 2018
+ * modified 20 feb 2018
  * by michele bonacina
  * 
  * 
@@ -35,9 +35,18 @@
 // include the library code:
 #include <LiquidCrystal.h>  // LCD library
 
-// ports definition
+// ports configuration
 const int wheelSensorPort   = A0;  // wheel sensor conneted on analog port 0
 const int cadenceSensorPort = A1;  // cadence sensor conneted on analog port 1
+const int setButton         = 8;   // set button connected to digital port 8
+const int prevButton        = 9;   // previous button connected to digital port 9
+const int nextButton        = 10;  // next button connected to digital port 10
+
+// lcd configuration
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);  // initialize the library with the interface pins
+const int left    = 1;  // text lcd left alignment
+const int center  = 2;  // text lcd center alignment
+const int right   = 3;  // text lcd right alignment
 
 // sensors configuration
 const int sensorLowLevel  = 400;  // under this analog level the sensor in open
@@ -51,49 +60,206 @@ int cadenceCounter              = 0;      // number of pedal turns
 boolean wheelState              = false;  // state of the wheel sensor - true closed, false open
 boolean cadenceState            = false;  // state of the cadence sensor - true closed, false open
 long wheelRevolutionDuration    = 0;      // time in millis for a wheel revolution
-long wheelRevolutionLastTime    = 0;      // last time the wheel sensor was closed
+long wheelRevolutionLastTime    = 0;      // last time the wheel sensor has been closed
 long cadenceRevolutionDuration  = 0;      // time in millis for a cadence revolution
-long cadenceRevolutionLastTime  = 0;      // last time the cadence sensor was closed
+long cadenceRevolutionLastTime  = 0;      // last time the cadence sensor has been closed
 int currentLcdData              = 0;      // the index of the current data to be printed on LCD display
-int showDataCounter             = 0;      // number of LCD printing cycle the data is shown
 
 // data computing
 long startTime            = 0;     // trainig starting time
+long totalTime            = 0;     // trainig total time
 long printTime            = 0;     // last data printing time
-float wheelCircumference  = 2096;  // wheel circumference in centimeters
-
-// lcd configuration
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);  // initialize the library with the interface pins
-const int left    = 1;  // text lcd left alignment
-const int center  = 2;  // text lcd center alignment
-const int right   = 3;  // text lcd right alignment
+boolean isRunning         = false; // session running status
+int setButtonValue        = LOW;   // current set button value
+int nextButtonValue       = LOW;   // current next button value
+int prevButtonValue       = LOW;   // current previous button value
+float wheelCircumference  = 2089;  // wheel circumference in millimeters
+String sessionData[8][2];          // session data
 
 
 /**
  * Main settings.
  */
 void setup() {
-  // initializes computation variables
-  startTime = millis();
-  // set up LCD's number of columns and rows
+  // sets up LCD's number of columns and rows
   lcd.begin(16, 2);
+  // sets up session data
+  sessionData[0][0] = "Wheel #";
+  sessionData[1][0] = "Cadence #";
+  sessionData[2][0] = "Time";
+  sessionData[3][0] = "Distance";
+  sessionData[4][0] = "Avg Velocity";
+  sessionData[5][0] = "Avg Cadence RPM";
+  sessionData[6][0] = "Velocity";
+  sessionData[7][0] = "Cadence RPM";
+  // sets up buttons
+  pinMode(setButton, INPUT);
+  pinMode(nextButton, INPUT);
+  pinMode(prevButton, INPUT);
   // prints a message on the LCD
-  lcdPrint("aBikeTrainer", left, "ver. 0.0.3.", left);  
+  lcdPrint("aBikeTrainer", left, "ver. 0.0.4.", left);  
   delay(2000);
 }
 
 
 /*
  * Main loop.
- * Read wheel and cadence sensor state and count revolutions.
- * Computes sessione data.
- * Prints session data on LCD changing every 5 seconds.
+ * Reads wheel and cadence sensor state and counts revolutions.
+ * Checks buttons state and start/stop session (set button) o change visualization (previous/next buttons)
+ * Computes session data if it's time to show them.
+ * Prints session data on LCD.
  */
 void loop() {
+  // checks sensors
+  sensorsCheck();
+  // checks buttons
+  buttonsCheck();
+  // prints sensor state
+  if (millis() - printTime > printLatency) {
+    // resets print timestamp
+    printTime = millis();
+    // computes data
+    dataCalculation();
+    // prints data on LCD
+    lcdPrint(sessionData[currentLcdData][0], left, sessionData[currentLcdData][1], right);  
+  }
+  // wait before next read
+  delay(latency);
+}
+
+/**
+ * Set button has been pressed.
+ * If session is running stop it.
+ * If session is stopped, reset counter and start it.
+ */
+void setButtonPressed() {
+  // checks session state
+  if (!isRunning) {
+    // session is stopped
+    // store new session starting time
+    startTime = millis();  
+    // reset wheel and cadence counters
+    wheelCounter = 0;
+    cadenceCounter = 0;
+  }
+  // if session is started, stop it
+  // if session is stopped, start it
+  isRunning = !isRunning;
+}
+
+/**
+ * Next button has been pressed.
+ * Switch to next session data, restarting from first after the last.
+ */
+void nextButtonPressed() {
+    // switches to next data
+    currentLcdData++;
+    // checks data position
+    if (currentLcdData > 7) {
+      // it's after the last
+      // switch to first
+      currentLcdData = 0;
+    }
+}
+
+/**
+ * Previous button has been pressed.
+ * Switch to previous session data, restarting from last before the first..
+ */
+void prevButtonPressed() {
+    // switches to previous data
+    currentLcdData--;
+    // check data position
+    if (currentLcdData < 0) {
+      // it's before the first
+      // switch to the last
+      currentLcdData = 7;
+    }
+}
+
+/**
+ * Computes session data.
+ * Calculates and store session wheel revolutions, cadence revolutions, total time,
+ * total distance, average velocity, average cadence rpm, instant velocity, instant cadence rpm.
+ */
+void dataCalculation() {
+  // computes session data
+  // total wheel and cadence revolutions
+  sessionData[0][1] = String(wheelCounter);
+  sessionData[1][1] = String(cadenceCounter);
+  // total time in this session in hour, minute, seconds
+  if (isRunning) {
+    totalTime = millis() - startTime;
+  }
+  String totalTimeString = "";
+  totalTimeString += totalTime / 3600000;
+  totalTimeString += ":";
+  if ((totalTime % 3600000) / 60000 <= 9) {
+    totalTimeString += "0";
+  }
+  totalTimeString += (totalTime % 3600000) / 60000;
+  totalTimeString += ":";
+  if ((totalTime % 60000) / 1000 <= 9) {
+    totalTimeString += "0";
+  }
+  totalTimeString += (totalTime % 60000) / 1000;
+  sessionData[2][1] = String(totalTimeString);
+  // total distance amount in this session in km
+  float totalDistance = wheelCircumference * wheelCounter / 1000000.0;
+  sessionData[3][1] = String(totalDistance);
+  // average velocity in km/h, based on distance and total session time
+  float averageVelocity = totalDistance / ((millis() - startTime) / 3600000.0);
+  sessionData[4][1] = String(averageVelocity);
+  // avrage cadence rpm, based on cadence and total session time
+  int averageCadenceRpm = (int) (cadenceCounter / ((millis() - startTime) / 60000.0));
+  sessionData[5][1] = String(averageCadenceRpm);
+  // instant velocity, based on one wheel revolution
+  float instantVelocity = (wheelCircumference / 1000000.0) / (wheelRevolutionDuration / 3600000.0);
+  sessionData[6][1] = String(instantVelocity);
+  // instant cadence rpm, based on one pedal revolution
+  int instantCadenceRpm = (int) (1.0 / (cadenceRevolutionDuration / 60000.0));
+  sessionData[7][1] = String(instantCadenceRpm);  
+}
+
+/**
+ * Checks buttons status.
+ * Checks if the buttons has been pressed. It consider a button pressed when it it's released.
+ * If pressed, calls the specific button-pressed function.
+ */
+void buttonsCheck() {
+  // reads buttons value
+  // set button state
+  if (digitalRead(setButton) == LOW && setButtonValue == HIGH) {
+    // set button has been released
+    setButtonPressed();
+  }
+  setButtonValue = digitalRead(setButton);
+  // next button state
+  if (digitalRead(nextButton) == LOW && nextButtonValue == HIGH) {
+    // set button has been released
+    nextButtonPressed();
+  }
+  nextButtonValue = digitalRead(nextButton);
+  // previous button state
+  if (digitalRead(prevButton) == LOW && prevButtonValue == HIGH) {
+    // previous button has been released
+    prevButtonPressed();
+  }
+  prevButtonValue = digitalRead(prevButton);
+}
+
+/**
+ * Checks sensor status.
+ * Checks if magnet is passed over the sensor closing the switch.
+ * The switch iss close if analog value read if over the min close level.
+ * If the switch turns from closed to opened, increments correspondig counter, 
+ * calculates revolution time and stores last revolution timestamp.
+ * Stores the sensor state.
+ */
+void sensorsCheck() {
   // reads sensors value
   int wheelSensorValue = analogRead(wheelSensorPort);
   int cadenceSensorValue = analogRead(cadenceSensorPort);
-
   // checks wheel sensor state
   if (wheelSensorValue < sensorLowLevel) {
     // the wheel sensor is open
@@ -133,74 +299,7 @@ void loop() {
     }
     // sets sensor closed
     cadenceState = true;
-  }
-  
-  // computes session data
-  // total wheel and cadence revolutions
-  String sessionData[8][2];
-  sessionData[0][0] = "Wheel #";
-  sessionData[0][1] = String(wheelCounter);
-  sessionData[1][0] = "Cadence #";
-  sessionData[1][1] = String(cadenceCounter);
-  // total time in this session in hour, minute, seconds
-  int totalTimeHour = (millis() - startTime) / 3600000;
-  int totalTimeMinute = ((millis() - startTime) % 3600000) / 60000;
-  int totalTimeSecond = ((millis() - startTime) % 60000) / 1000;
-  String totalTime = "";
-  for (int i = 0; i < 10 - String(totalTimeHour).length(); i++) {
-    totalTime += " ";
-  }
-  totalTime += totalTimeHour;
-  totalTime += ":";
-  if (totalTimeMinute <= 9) {
-    totalTime += "0";
-  }
-  totalTime += totalTimeMinute;
-  totalTime += ":";
-  if (totalTimeSecond <= 9) {
-    totalTime += "0";
-  }
-  totalTime += totalTimeSecond;
-  sessionData[2][0] = "Time";
-  sessionData[2][1] = String(totalTime);
-  // total distance amount in this session in km
-  float totalDistance = wheelCircumference * wheelCounter / 100000.0;
-  sessionData[3][0] = "Distance";
-  sessionData[3][1] = String(totalDistance);
-  // average velocity in km/h, based on distance and total session time
-  float averageVelocity = totalDistance / ((millis() - startTime) / 3600000.0);
-  sessionData[4][0] = "Avg Velocity";
-  sessionData[4][1] = String(averageVelocity);
-  // avrage cadence rpm, based on cadence and total session time
-  int averageCadenceRpm = (int) (cadenceCounter / ((millis() - startTime) / 60000.0));
-  sessionData[5][0] = "Avg Cadence RPM";
-  sessionData[5][1] = String(averageCadenceRpm);
-  // instant velocity, based on one wheel revolution
-  float instantVelocity = (wheelCircumference / 100000.0) / (wheelRevolutionDuration / 3600000.0);
-  sessionData[6][0] = "Velocity";
-  sessionData[6][1] = String(instantVelocity);
-  // instant cadence rpm, based on one pedal revolution
-  int instantCadenceRpm = (int) (1.0 / (cadenceRevolutionDuration / 60000.0));
-  sessionData[7][0] = "Cadence RPM";
-  sessionData[7][1] = String(instantCadenceRpm);
-
-  // prints sensor state
-  if (millis() - printTime > printLatency) {
-    // resets print timestamp
-    printTime = millis();
-    // checks data to show
-    if (showDataCounter >= 20) {
-      // it's time to change data shown
-      currentLcdData = (currentLcdData + 1) % 8;
-      showDataCounter = 0;
-    }
-    showDataCounter++;
-    // prints data on LCD
-    lcdPrint(sessionData[currentLcdData][0], left, sessionData[currentLcdData][1], right);  
-  }
-  
-  // wait before next read
-  delay(latency);
+  }  
 }
 
 
