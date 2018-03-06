@@ -10,7 +10,7 @@
  * 
  * >>> THIS IS A TEST PROTOTYPE <<<
  * 
- * version  0.0.4. 
+ * version  0.0.5. 
  * created  12 feb 2018
  * modified 20 feb 2018
  * by michele bonacina
@@ -44,9 +44,10 @@ const int nextButton        = 10;  // next button connected to digital port 10
 
 // lcd configuration
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);  // initialize the library with the interface pins
-const int left    = 1;  // text lcd left alignment
-const int center  = 2;  // text lcd center alignment
-const int right   = 3;  // text lcd right alignment
+const int left            = 1;  // text lcd left alignment
+const int center          = 2;  // text lcd center alignment
+const int right           = 3;  // text lcd right alignment
+const int numSessionData  = 10; // number of session data
 
 // sensors configuration
 const int sensorLowLevel  = 400;  // under this analog level the sensor in open
@@ -64,17 +65,19 @@ long wheelRevolutionLastTime    = 0;      // last time the wheel sensor has been
 long cadenceRevolutionDuration  = 0;      // time in millis for a cadence revolution
 long cadenceRevolutionLastTime  = 0;      // last time the cadence sensor has been closed
 int currentLcdData              = 0;      // the index of the current data to be printed on LCD display
+float maxVelocity               = 0;      // the max velocity obtained during the session
+float maxCadenceRpm             = 0;      // the max cadence rpm obtained during the session
 
 // data computing
-long startTime            = 0;     // trainig starting time
-long totalTime            = 0;     // trainig total time
-long printTime            = 0;     // last data printing time
-boolean isRunning         = false; // session running status
-int setButtonValue        = LOW;   // current set button value
-int nextButtonValue       = LOW;   // current next button value
-int prevButtonValue       = LOW;   // current previous button value
-float wheelCircumference  = 2089;  // wheel circumference in millimeters
-String sessionData[8][2];          // session data
+long startTime                        = 0;     // trainig starting time
+long totalTime                        = 0;     // trainig total time
+long printTime                        = 0;     // last data printing time
+boolean isRunning                     = false; // session running status
+int setButtonValue                    = LOW;   // current set button value
+int nextButtonValue                   = LOW;   // current next button value
+int prevButtonValue                   = LOW;   // current previous button value
+float wheelCircumference              = 2089;  // wheel circumference in millimeters
+String sessionData[numSessionData][2];         // session data
 
 
 /**
@@ -92,12 +95,14 @@ void setup() {
   sessionData[5][0] = "Avg Cadence RPM";
   sessionData[6][0] = "Velocity";
   sessionData[7][0] = "Cadence RPM";
+  sessionData[8][0] = "Max Velocity";
+  sessionData[9][0] = "Max Cadence RPM";
   // sets up buttons
   pinMode(setButton, INPUT);
   pinMode(nextButton, INPUT);
   pinMode(prevButton, INPUT);
   // prints a message on the LCD
-  lcdPrint("aBikeTrainer", left, "ver. 0.0.4.", left);  
+  lcdPrint("aBikeTrainer", left, "ver. 0.0.5.", left);  
   delay(2000);
 }
 
@@ -141,6 +146,8 @@ void setButtonPressed() {
     // reset wheel and cadence counters
     wheelCounter = 0;
     cadenceCounter = 0;
+    maxVelocity = 0;
+    maxCadenceRpm = 0;
   }
   // if session is started, stop it
   // if session is stopped, start it
@@ -155,7 +162,7 @@ void nextButtonPressed() {
     // switches to next data
     currentLcdData++;
     // checks data position
-    if (currentLcdData > 7) {
+    if (currentLcdData > numSessionData - 1) {
       // it's after the last
       // switch to first
       currentLcdData = 0;
@@ -173,7 +180,7 @@ void prevButtonPressed() {
     if (currentLcdData < 0) {
       // it's before the first
       // switch to the last
-      currentLcdData = 7;
+      currentLcdData = numSessionData - 1;
     }
 }
 
@@ -219,6 +226,18 @@ void dataCalculation() {
   // instant cadence rpm, based on one pedal revolution
   int instantCadenceRpm = (int) (1.0 / (cadenceRevolutionDuration / 60000.0));
   sessionData[7][1] = String(instantCadenceRpm);  
+  // max velocity
+  if (instantVelocity > maxVelocity) {
+    // new max velocity
+    maxVelocity = instantVelocity;
+  }
+  sessionData[8][1] = String(maxVelocity);    
+  // max cadence rpm
+  if (instantCadenceRpm > maxCadenceRpm) {
+    // new max cadence rpm
+    maxCadenceRpm = instantCadenceRpm;
+  }
+  sessionData[9][1] = String(maxCadenceRpm);    
 }
 
 /**
