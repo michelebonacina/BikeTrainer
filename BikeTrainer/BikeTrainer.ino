@@ -6,13 +6,15 @@
  * Calculates total time and total distace.
  * Calculates instant velocity and instant cadence rpm. 
  * Calculates average velocity and average cadence rpm.
- * Shows data on LCD, changing shown values every 5 seconds
+ * Calculates max velocity and max cadence rpm.
+ * Shows data on LCD, changing using next and previuos buttoms.
+ * Starts and stop session using set button. Start reset session data.
  * 
  * >>> THIS IS A TEST PROTOTYPE <<<
  * 
  * version  0.0.5. 
  * created  12 feb 2018
- * modified 20 feb 2018
+ * modified 06 mar 2018
  * by michele bonacina
  * 
  * 
