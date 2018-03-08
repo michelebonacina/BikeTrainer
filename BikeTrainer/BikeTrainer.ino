@@ -217,10 +217,10 @@ void dataCalculation() {
   float totalDistance = wheelCircumference * wheelCounter / 1000000.0;
   sessionData[3][1] = String(totalDistance);
   // average velocity in km/h, based on distance and total session time
-  float averageVelocity = totalDistance / ((millis() - startTime) / 3600000.0);
+  float averageVelocity = totalDistance / (totalTime / 3600000.0);
   sessionData[4][1] = String(averageVelocity);
   // avrage cadence rpm, based on cadence and total session time
-  int averageCadenceRpm = (int) (cadenceCounter / ((millis() - startTime) / 60000.0));
+  int averageCadenceRpm = (int) (cadenceCounter / (totalTime / 60000.0));
   sessionData[5][1] = String(averageCadenceRpm);
   // instant velocity, based on one wheel revolution
   float instantVelocity = (wheelCircumference / 1000000.0) / (wheelRevolutionDuration / 3600000.0);
