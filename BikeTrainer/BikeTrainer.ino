@@ -10,11 +10,9 @@
  * Shows data on LCD, changing using next and previuos buttoms.
  * Starts and stop session using set button. Start reset session data.
  * 
- * >>> THIS IS A TEST PROTOTYPE <<<
- * 
- * version  0.0.5. 
+ * version  1.0.0. 
  * created  12 feb 2018
- * modified 06 mar 2018
+ * modified 08 mar 2018
  * by michele bonacina
  * 
  * 
@@ -104,7 +102,7 @@ void setup() {
   pinMode(nextButton, INPUT);
   pinMode(prevButton, INPUT);
   // prints a message on the LCD
-  lcdPrint("aBikeTrainer", left, "ver. 0.0.5.", left);  
+  lcdPrint("aBikeTrainer", left, "ver. 1.0.0.", left);  
   delay(2000);
 }
 
